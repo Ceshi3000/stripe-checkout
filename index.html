@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>自动收集地址的支付页面</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        .container { max-width: 600px; margin: 50px auto; padding: 20px; }
+        .form-row { margin-bottom: 15px; }
+        .StripeElement { 
+            padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;
+        }
+        button { 
+            background: #6772e5; color: white; padding: 12px; border: none; border-radius: 4px; 
+            width: 100%; cursor: pointer; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>支付信息</h2>
+        <form id="payment-form">
+            <div class="form-row">
+                <div id="card-element"></div>
+            </div>
+            <button id="submit-button">支付 $10.00</button>
+            <div id="error-message" style="color: red; margin-top: 10px;"></div>
+        </form>
+    </div>
+
+    <script>
+        const stripe = Stripe('pk_live_51ROOMhA8cycCfESI7c8nrZmS9o8MZWuZyiaL1uMDjsMBZzFzlLmZjdEgQFZqXh0J4Wd6BQPFEV4w8ol5K4mtPqpU00Q3PltoPq'); // 替换为Stripe提供的密钥
+        
+        const elements = stripe.elements();
+        const cardElement = elements.create('card', {
+            hidePostalCode: false, // 显示邮编输入
+            style: {
+                base: { fontSize: '16px' }
+            },
+            fields: {
+                billingDetails: {
+                    address: { postalCode: 'always' } // 强制要求邮编
+                }
+            }
+        });
+        cardElement.mount('#card-element');
+
+        document.getElementById('payment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const { error, paymentMethod } = await stripe.createPaymentMethod({
+                type: 'card',
+                card: cardElement
+            });
+
+            if (error) {
+                document.getElementById('error-message').textContent = error.message;
+            } else {
+                // 使用Stripe自带的支付确认（无需后端）
+                const { error } = await stripe.confirmCardPayment('pi_XXXXXX_secret_XXXXXX', { // 需要先创建PaymentIntent
+                    payment_method: paymentMethod.id
+                });
+
+                if (error) {
+                    alert(error.message);
+                } else {
+                    alert('支付成功！');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
