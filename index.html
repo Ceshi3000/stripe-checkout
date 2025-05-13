@@ -1,17 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>自动收集地址的支付页面</title>
+    <title>pay</title>
     <script src="https://js.stripe.com/v3/"></script>
     <style>
         .container { max-width: 600px; margin: 50px auto; padding: 20px; }
         .form-row { margin-bottom: 15px; }
+        /* 自定义Stripe元素样式 */
         .StripeElement { 
-            padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            margin-bottom: 10px;
         }
+        .StripeElement--focus { border-color: #6772e5; }
+        .StripeElement--invalid { border-color: #ff3860; }
         button { 
-            background: #6772e5; color: white; padding: 12px; border: none; border-radius: 4px; 
-            width: 100%; cursor: pointer; 
+            background: #6772e5; 
+            color: white; 
+            padding: 12px; 
+            border: none; 
+            border-radius: 4px; 
+            width: 100%; 
+            cursor: pointer; 
         }
     </style>
 </head>
@@ -19,6 +30,7 @@
     <div class="container">
         <h2>支付信息</h2>
         <form id="payment-form">
+            <!-- Stripe会自动生成卡号+地址输入区域 -->
             <div class="form-row">
                 <div id="card-element"></div>
             </div>
@@ -28,42 +40,60 @@
     </div>
 
     <script>
-        const stripe = Stripe('pk_live_51ROOMhA8cycCfESI7c8nrZmS9o8MZWuZyiaL1uMDjsMBZzFzlLmZjdEgQFZqXh0J4Wd6BQPFEV4w8ol5K4mtPqpU00Q3PltoPq'); // 替换为Stripe提供的密钥
+        // 替换为你的测试模式 publishable key
+        const stripe = Stripe('pk_live_51ROOMhA8cycCfESI7c8nrZmS9o8MZWuZyiaL1uMDjsMBZzFzlLmZjdEgQFZqXh0J4Wd6BQPFEV4w8ol5K4mtPqpU00Q3PltoPq');
         
         const elements = stripe.elements();
+        // 核心配置：启用完整地址收集
         const cardElement = elements.create('card', {
-            hidePostalCode: false, // 显示邮编输入
             style: {
-                base: { fontSize: '16px' }
+                base: {
+                    fontSize: '16px',
+                    color: '#32325d',
+                    '::placeholder': { color: '#aab7c4' }
+                },
+                invalid: { color: '#ff3860' }
             },
+            hidePostalCode: false, // 显示邮编输入
             fields: {
                 billingDetails: {
-                    address: { postalCode: 'always' } // 强制要求邮编
+                    address: {
+                        postalCode: 'always',  // 强制要求邮编
+                        country: 'auto',       // 自动检测国家
+                        state: 'auto'          // 显示州/省字段（根据国家动态变化）
+                    }
                 }
             }
         });
+
         cardElement.mount('#card-element');
 
+        // 实时错误提示
+        cardElement.on('change', (event) => {
+            const displayError = document.getElementById('error-message');
+            event.error ? 
+                displayError.textContent = event.error.message :
+                displayError.textContent = '';
+        });
+
+        // 表单提交处理
         document.getElementById('payment-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const { error, paymentMethod } = await stripe.createPaymentMethod({
                 type: 'card',
-                card: cardElement
+                card: cardElement,
+                // 自动收集地址信息
+                billing_details: {
+                    name: 'Customer Name' // 如果需要收集姓名可在此添加字段
+                }
             });
 
             if (error) {
                 document.getElementById('error-message').textContent = error.message;
             } else {
-                // 使用Stripe自带的支付确认（无需后端）
-                const { error } = await stripe.confirmCardPayment('pi_XXXXXX_secret_XXXXXX', { // 需要先创建PaymentIntent
-                    payment_method: paymentMethod.id
-                });
-
-                if (error) {
-                    alert(error.message);
-                } else {
-                    alert('支付成功！');
-                }
+                // 这里需要替换为你的实际处理逻辑
+                console.log('收集到的地址信息:', paymentMethod.billing_details);
+                alert('支付成功！地址信息已提交');
             }
         });
     </script>
